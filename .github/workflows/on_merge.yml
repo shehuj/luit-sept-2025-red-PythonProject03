@@ -36,7 +36,7 @@ jobs:
           echo "$audit_json" > audit_output.json
 
           # Optionally, also run a test script if you have one
-          python 02/tests/test_check_required_files.py
+          python tests/test_check_required_files.py
 
       - name: Configure AWS credentials
         if: ${{ steps.file_audit.outcome == 'success' }}
