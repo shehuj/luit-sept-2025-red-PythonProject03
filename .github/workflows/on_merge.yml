@@ -25,7 +25,7 @@ jobs:
         id: file_audit
         run: |
           # Run the script which should output JSON with required/present/missing
-          audit_json=$(python tests/test_check_required_files.py)
+          audit_json=$(python tests/check_required_files.py)
           if [ -z "$audit_json" ]; then
             echo "ERROR: audit_json is empty — no JSON produced"
             exit 1
