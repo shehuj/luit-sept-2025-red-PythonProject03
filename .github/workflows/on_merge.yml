@@ -1,0 +1,96 @@
+name: On Merge to Main — File Presence & Logging (Prod)
+
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  check_and_log_prod:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install pyyaml jq
+
+      - name: Show files
+        run: ls -R .
+
+      - name: Run required files audit
+        id: file_audit
+        run: |
+          # Run the script which should output JSON with required/present/missing
+          audit_json=$(python 02/tests/test_check_required_files.py)
+          if [ -z "$audit_json" ]; then
+            echo "ERROR: audit_json is empty — no JSON produced"
+            exit 1
+          fi
+          echo "Audit JSON: $audit_json"
+
+          # Save it so later steps can use it
+          echo "$audit_json" > audit_output.json
+
+          # Optionally, also run a test script if you have one
+          python 02/tests/test_check_required_files.py
+
+      - name: Configure AWS credentials
+        if: ${{ steps.file_audit.outcome == 'success' }}
+        uses: aws-actions/configure-aws-credentials@v2
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ secrets.AWS_REGION }}
+
+      - name: Log enriched audit to CloudWatch (prod)
+        if: ${{ steps.file_audit.outcome == 'success' }}
+        run: |
+          LOG_GROUP="/github-actions/required-files-checker/prod"
+          LOG_STREAM=$(date -u +"%Y-%m-%dT%H-%M-%SZ")
+
+          REPO="${GITHUB_REPOSITORY}"
+          BRANCH="${GITHUB_REF##*/}"
+          EVENT="${GITHUB_EVENT_NAME}"
+          SHA="${GITHUB_SHA}"
+          ACTOR="${GITHUB_ACTOR}"
+
+          CONTEXT=$(cat audit_output.json)
+          if [ -z "$CONTEXT" ]; then
+            echo "WARNING: CONTEXT is empty; aborting log"
+            exit 0
+          fi
+
+          echo "Logging to: group=$LOG_GROUP, stream=$LOG_STREAM"
+          echo "Context: $CONTEXT"
+
+          aws logs create-log-group --log-group-name "$LOG_GROUP" || true
+          aws logs create-log-stream --log-group-name "$LOG_GROUP" --log-stream-name "$LOG_STREAM"
+
+          inner_message=$(jq -n \
+            --arg repo "$REPO" \
+            --arg branch "$BRANCH" \
+            --arg event "$EVENT" \
+            --arg sha "$SHA" \
+            --arg actor "$ACTOR" \
+            --arg ctx "$CONTEXT" \
+            '{
+              repository: $repo,
+              branch: $branch,
+              event: $event,
+              commit_sha: $sha,
+              actor: $actor,
+              audit: ($ctx | fromjson)
+            }'
+          )
+
+          timestamp_ms=$(date +%s%3N)
+          msg_escaped=$(echo "$inner_message" | jq -Rs '.')
+
+          aws logs put-log-events \
+            --log-group-name "$LOG_GROUP" \
+            --log-stream-name "$LOG_STREAM" \
+            --log-events timestamp=$timestamp_ms,message="$msg_escaped"
