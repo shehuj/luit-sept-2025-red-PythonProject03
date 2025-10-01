@@ -1,0 +1,75 @@
+name: PR to Main Checks
+
+on:
+  pull_request:
+    branches:
+      - main
+    types:
+      - opened
+      - reopened
+      - synchronize
+
+jobs:
+  pr_checks:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Display PR info
+        run: |
+          echo "Pull Request #${{ github.event.pull_request.number }}"
+          echo "Head branch: ${{ github.head_ref }}"
+          echo "Base branch: ${{ github.event.pull_request.base.ref }}"
+
+      - name: Run required files check
+        run: |
+          python tests/check_required_files.py
+
+      - name: Configure AWS credentials
+        if: steps.run_required_files_check.outcome == 'success'
+        uses: aws-actions/configure-aws-credentials@v2
+        with:
+            aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+            aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+            aws-region: ${{ secrets.AWS_REGION }}
+
+      - name: Log to CloudWatch on success
+        if: steps.run_required_files_check.outcome == 'success'
+        run: |
+          # Set variables
+          LOG_GROUP="/github-actions/required-files-checker/beta"
+          LOG_STREAM=$(date -u +"%Y-%m-%dT%H:%M:%SZ")    # ISO 8601 UTC, e.g. 2025-09-24T12:34:56Z
+          COMMIT_SHA="${GITHUB_SHA}"
+          ACTOR="${GITHUB_ACTOR}"
+          WORKFLOW="${GITHUB_WORKFLOW}"
+          TIMESTAMP_MS=$(date +%s%3N)
+
+          echo "Logging to CloudWatch: group=$LOG_GROUP, stream=$LOG_STREAM"
+
+          # Create the log group if not exists (ignore error if exists)
+          aws logs create-log-group --log-group-name "$LOG_GROUP" || true
+
+          # Create log stream
+          aws logs create-log-stream --log-group-name "$LOG_GROUP" --log-stream-name "$LOG_STREAM"
+
+          # Prepare JSON payload
+          LOG_EVENT=$(jq -n \
+            --arg wf "$WORKFLOW" \
+            --arg sha "$COMMIT_SHA" \
+            --arg actor "$ACTOR" \
+            --arg ts "$TIMESTAMP_MS" \
+            '[
+              {
+                timestamp: ($ts | tonumber),
+                message: "workflow=\($wf) commit=\($sha) actor=\($actor) timestamp_ms=\($ts)"
+              }
+            ]'
+          )
+
+          # Put log event
+          aws logs put-log-events \
+            --log-group-name "$LOG_GROUP" \
+            --log-stream-name "$LOG_STREAM" \
+            --log-events "$LOG_EVENT"
