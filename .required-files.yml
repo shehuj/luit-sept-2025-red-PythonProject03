@@ -1,0 +1,4 @@
+required_files:
+  - .gitignore
+  - README.md
+  - requirements.txt
