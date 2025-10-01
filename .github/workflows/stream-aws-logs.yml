@@ -25,9 +25,9 @@ jobs:
           
           # Set log group based on branch
           if [ "${{ github.ref }}" = "refs/heads/main" ]; then
-            LOG_GROUP_NAME="${{ secrets.PROD }}"
+            LOG_GROUP_NAME="${{ secrets.PROD_LOG_GROUP }}"
           else
-            LOG_GROUP_NAME="${{ secrets.BETA }}"
+            LOG_GROUP_NAME="${{ secrets.BETA_LOG_GROUP }}"
           fi
           
           # Check if log group name is set
