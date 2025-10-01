@@ -23,7 +23,7 @@ def check_required_files_os(root_dir, required_files):
     return found_status
 
 # Example usage:
-root_directory = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))  # Or specify a different path like "/path/to/your/project"
+root_directory = os.path.abspath(os.path.join(os.path.dirname(__file__)))  # Or specify a different path like "/path/to/your/project"
 files_to_check = [".gitignore", "README.md", "requirements.txt"]
 
 results_os = check_required_files_os(root_directory, files_to_check)
