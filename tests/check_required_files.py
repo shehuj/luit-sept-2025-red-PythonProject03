@@ -1,40 +1,44 @@
-# Check required files
-import os
+#!/usr/bin/env python3
 import sys
+import json
+from pathlib import Path
 
-def check_required_files_os(root_dir, required_files):
-    """
-    Checks for the presence of required files in a specified root directory
-    using the os module.
+def check_files(base_dir: Path, required_files: list[str]) -> dict:
+    present = []
+    missing = []
+    for filename in required_files:
+        target = base_dir / filename
+        if target.exists():
+            present.append(filename)
+        else:
+            missing.append(filename)
+    return {
+        "required": required_files,
+        "present": present,
+        "missing": missing,
+        "all_present": (len(missing) == 0),
+    }
 
-    Args:
-        root_dir (str): The path to the root directory to check.
-        required_files (list): A list of strings, where each string is the
-                               name of a required file.
+def main():
+    script_path = Path(__file__).resolve()
+    repo_root = script_path.parent.parent  # base directory where files should reside
 
-    Returns:
-        dict: A dictionary where keys are the required file names and values
-              are booleans indicating if the file exists (True) or not (False).
-    """
-    found_status = {}
-    for file_name in required_files:
-        file_path = os.path.join(root_dir, file_name)
-        found_status[file_name] = os.path.isfile(file_path)
-    return found_status
+    required = [
+        "README.md",
+        ".gitignore",
+        "requirements.txt"
+        # add others you need
+    ]
 
-# Example usage:
-root_directory = "."
-#root_directory = os.path.abspath(os.path.join(os.path.dirname(__file__)))  # Or specify a different path like "/path/to/your/project"
-files_to_check = [".gitignore", "README.md", "requirements.txt"]
+    result = check_files(repo_root, required)
 
-results_os = check_required_files_os(root_directory, files_to_check)
-# if file is missing, exit with code 1 and pring missing file
-if not all(results_os.values()):
-    print("Missing required files:")
-    for file, exists in results_os.items():
-        if not exists:
-            print(f"'{file}'")
-    sys.exit(1)
+    # Print JSON to stdout
+    print(json.dumps(result))
 
-# print("All required files are present.")
-sys.exit(0)
+    # Exit code
+    if not result["all_present"]:
+        sys.exit(1)
+    sys.exit(0)
+
+if __name__ == "__main__":
+    main()
