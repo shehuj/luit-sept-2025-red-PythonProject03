@@ -1,16 +1,10 @@
-name: PR to Main Checks
+name: Deploy Lambda to Beta
 
 on:
   pull_request:
-    branches:
-      - main
-    types:
-      - opened
-      - reopened
-      - synchronize
 
 jobs:
-  pr_checks:
+  deploy-beta:
     runs-on: ubuntu-latest
 
     steps:
@@ -25,7 +19,7 @@ jobs:
 
       - name: Run required files check
         run: |
-          python tests/check_required_files.py
+          python 02/tests/test_check_required_files.py
 
       - name: Configure AWS credentials
         if: steps.run_required_files_check.outcome == 'success'
@@ -34,7 +28,23 @@ jobs:
             aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
             aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
             aws-region: ${{ secrets.AWS_REGION }}
-
+      - name: Zip Lambda Function
+        run: zip ${LAMBDA_NAME_BETA}.zip infrastructure/cloudformation/lambda_function.py
+    
+      - name: Upload to S3 (Beta)
+        run: aws s3 cp ${LAMBDA_NAME_BETA}.zip s3://${{ secrets.S3_BUCKET_BETA }}/${{ secrets.S3_PATH_BETA }}
+    
+      - name: Deploy CloudFormation (Beta)
+        run: |
+          aws cloudformation deploy \
+            --stack-name ${{ secrets.CF_STACK_NAME_BETA }} \
+            --template-file infrastructure/cloudformation/lambda-ec2-shutdown.yml \
+            --capabilities CAPABILITY_NAMED_IAM \
+            --parameter-overrides \
+              LambdaFunctionName=${{ secrets.LAMBDA_NAME_BETA }} \
+              LambdaCodeBucket=${{ secrets.S3_BUCKET_BETA }} \
+              LambdaCodeKey=${{ secrets.S3_PATH_BETA }}
+             
       - name: Log to CloudWatch on success
         if: steps.run_required_files_check.outcome == 'success'
         run: |

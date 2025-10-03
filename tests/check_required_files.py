@@ -26,7 +26,8 @@ def main():
     required = [
         "README.md",
         ".gitignore",
-        "requirements.txt"
+        "requirements.txt",
+        "lambda_function.py",
         # add others you need
     ]
 
