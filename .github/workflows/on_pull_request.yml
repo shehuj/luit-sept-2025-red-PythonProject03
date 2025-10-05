@@ -29,10 +29,9 @@ jobs:
             aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
             aws-region: ${{ secrets.AWS_REGION }}
       - name: Zip Lambda Function
-        run: zip ${LAMBDA_NAME_BETA}.zip infrastructure/cloudformation/lambda-ec2-shutdown.yml
+        run: zip ${LAMBDA_NAME_BETA}.zip infrastructure/cloudformation/lambda_function.py
 
 
-    
       - name: Upload to S3 (Beta)
         run: aws s3 cp ${LAMBDA_NAME_BETA}.zip s3://${{ secrets.S3_BUCKET_BETA }}/${{ secrets.S3_PATH_BETA }}
     
