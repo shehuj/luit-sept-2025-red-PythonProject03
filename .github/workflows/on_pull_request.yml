@@ -45,18 +45,18 @@ jobs:
 
       - name: Zip Lambda Function
         if: steps.run_required_files_check.outcome == 'success'
-        run: zip ${ { secrets.LAMBDA_NAME_BETA } }.zip lambda_function_advance.py
+        run: zip ${{ secrets.LAMBDA_NAME_BETA }}.zip lambda_function_advance.py
 
       - name: Upload to S3 (Beta)
         if: steps.run_required_files_check.outcome == 'success'
-        run: aws s3 cp ${ { secrets.LAMBDA_NAME_BETA } }.zip s3://${{ secrets.S3_BUCKET_BETA }}/${{ secrets.S3_PATH_BETA }}
+        run: aws s3 cp ${{ secrets.LAMBDA_NAME_BETA }}.zip s3://${{ secrets.S3_BUCKET_BETA }}/${{ secrets.S3_PATH_BETA }}
 
       - name: Deploy CloudFormation (Beta)
         if: steps.run_required_files_check.outcome == 'success'
         run: |
           aws cloudformation deploy \
             --stack-name ${{ secrets.CF_STACK_NAME_BETA }} \
-            --template-file infrastructure/cloudformation/lambda-ec2-shutdown-advance.yml \
+            --template-file infrastructure/cloudformation/ec2-shutdown-advance.yml \
             --capabilities CAPABILITY_NAMED_IAM \
             --parameter-overrides \
               LambdaFunctionName=${{ secrets.LAMBDA_NAME_BETA }} \

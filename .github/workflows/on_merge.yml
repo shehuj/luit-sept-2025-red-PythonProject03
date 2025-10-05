@@ -39,7 +39,7 @@ jobs:
         run: |
           aws cloudformation deploy \
             --stack-name ${{ secrets.CF_STACK_NAME_PROD }} \
-            --template-file infrastructure/cloudformation/lambda-ec2-shutdown-advance.yml \
+            --template-file infrastructure/cloudformation/ec2-shutdown-advance.yml \
             --capabilities CAPABILITY_NAMED_IAM \
             --parameter-overrides \
               LambdaFunctionName=${{ secrets.LAMBDA_NAME_PROD }} \
