@@ -30,7 +30,7 @@ jobs:
           env | grep AWS
 
       - name: Zip Lambda Function
-        run: zip ${{ secrets.LAMBDA_NAME_PROD }}.zip lambda_function.py
+        run: zip ${{ secrets.LAMBDA_NAME_PROD }}.zip lambda_function_advance.py
 
       - name: Upload to S3 (Prod)
         run: aws s3 cp ${{ secrets.LAMBDA_NAME_PROD }}.zip s3://${{ secrets.S3_BUCKET_PROD }}/${{ secrets.S3_PATH_PROD }}
@@ -39,7 +39,7 @@ jobs:
         run: |
           aws cloudformation deploy \
             --stack-name ${{ secrets.CF_STACK_NAME_PROD }} \
-            --template-file infrastructure/cloudformation/lambda-ec2-shutdown.yml \
+            --template-file infrastructure/cloudformation/lambda-ec2-shutdown-advance.yml \
             --capabilities CAPABILITY_NAMED_IAM \
             --parameter-overrides \
               LambdaFunctionName=${{ secrets.LAMBDA_NAME_PROD }} \
