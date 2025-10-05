@@ -1,16 +1,14 @@
-name: PR to Main Checks
+name: Deploy Lambda to Beta
 
 on:
   pull_request:
-    branches:
-      - main
-    types:
-      - opened
-      - reopened
-      - synchronize
+
+permissions:
+  id-token: write
+  contents: read
 
 jobs:
-  pr_checks:
+  deploy-beta:
     runs-on: ubuntu-latest
 
     steps:
@@ -29,47 +27,36 @@ jobs:
 
       - name: Configure AWS credentials
         if: steps.run_required_files_check.outcome == 'success'
-        uses: aws-actions/configure-aws-credentials@v2
+        uses: aws-actions/configure-aws-credentials@v4
         with:
-            aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
-            aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-            aws-region: ${{ secrets.AWS_REGION }}
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ secrets.AWS_REGION }}
 
-      - name: Log to CloudWatch on success
+      - name: Debug AWS Identity
         if: steps.run_required_files_check.outcome == 'success'
         run: |
-          # Set variables
-          LOG_GROUP="/github-actions/required-files-checker/beta"
-          LOG_STREAM=$(date -u +"%Y-%m-%dT%H:%M:%SZ")    # ISO 8601 UTC, e.g. 2025-09-24T12:34:56Z
-          COMMIT_SHA="${GITHUB_SHA}"
-          ACTOR="${GITHUB_ACTOR}"
-          WORKFLOW="${GITHUB_WORKFLOW}"
-          TIMESTAMP_MS=$(date +%s%3N)
+          aws sts get-caller-identity || echo "No credentials"
+          env | grep AWS
 
-          echo "Logging to CloudWatch: group=$LOG_GROUP, stream=$LOG_STREAM"
+      - name: Zip Lambda Function
+        if: steps.run_required_files_check.outcome == 'success'
+        run: zip ${ { secrets.LAMBDA_NAME_BETA } }.zip lambda_function.py
 
-          # Create the log group if not exists (ignore error if exists)
-          aws logs create-log-group --log-group-name "$LOG_GROUP" || true
+      - name: Upload to S3 (Beta)
+        if: steps.run_required_files_check.outcome == 'success'
+        run: aws s3 cp ${ { secrets.LAMBDA_NAME_BETA } }.zip s3://${{ secrets.S3_BUCKET_BETA }}/${{ secrets.S3_PATH_BETA }}
 
-          # Create log stream
-          aws logs create-log-stream --log-group-name "$LOG_GROUP" --log-stream-name "$LOG_STREAM"
+      - name: Deploy CloudFormation (Beta)
+        if: steps.run_required_files_check.outcome == 'success'
+        run: |
+          aws cloudformation deploy \
+            --stack-name ${{ secrets.CF_STACK_NAME_BETA }} \
+            --template-file infrastructure/cloudformation/lambda-ec2-shutdown.yml \
+            --capabilities CAPABILITY_NAMED_IAM \
+            --parameter-overrides \
+              LambdaFunctionName=${{ secrets.LAMBDA_NAME_BETA }} \
+              LambdaCodeBucket=${{ secrets.S3_BUCKET_BETA }} \
+              LambdaCodeKey=${{ secrets.S3_PATH_BETA }}
 
-          # Prepare JSON payload
-          LOG_EVENT=$(jq -n \
-            --arg wf "$WORKFLOW" \
-            --arg sha "$COMMIT_SHA" \
-            --arg actor "$ACTOR" \
-            --arg ts "$TIMESTAMP_MS" \
-            '[
-              {
-                timestamp: ($ts | tonumber),
-                message: "workflow=\($wf) commit=\($sha) actor=\($actor) timestamp_ms=\($ts)"
-              }
-            ]'
-          )
-
-          # Put log event
-          aws logs put-log-events \
-            --log-group-name "$LOG_GROUP" \
-            --log-stream-name "$LOG_STREAM" \
-            --log-events "$LOG_EVENT"
+      # (Your CloudWatch logging step can remain as you have it, gated similarly)
