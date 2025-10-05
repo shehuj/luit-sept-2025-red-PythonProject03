@@ -64,7 +64,8 @@ def main():
             "README.md",
             ".gitignore",
             "requirements.txt",
-            "lambda_function.py",
+            "lambda_function_foundational.py",
+            "lambda_function_advance.py",
             # add others you need
         ]
 
