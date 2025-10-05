@@ -2,6 +2,10 @@ name: Deploy Lambda to Beta
 
 on:
   pull_request:
+    branches:
+      - main
+      - dev
+
 
 permissions:
   id-token: write
