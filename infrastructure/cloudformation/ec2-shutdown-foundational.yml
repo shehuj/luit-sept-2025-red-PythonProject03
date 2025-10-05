@@ -63,8 +63,7 @@ Resources:
     Type: AWS::Events::Rule
     Properties:
       Name: !Sub "${LambdaFunctionName}-ScheduleRule"
-      ScheduleExpression: "cron(0 0/2 * * ? *)"  # Every 2 hours
-      # ScheduleExpression: "cron(0 23 * * ? *)"  # 7 PM EST / 8 PM EDT = 11 PM UTC
+      ScheduleExpression: "cron(0 23 * * ? *)"  # 7 PM EST / 8 PM EDT = 11 PM UTC
       State: ENABLED
       Targets:
         - Arn: !GetAtt LambdaFunction.Arn
