@@ -2,4 +2,8 @@ required_files:
   - .gitignore
   - README.md
   - requirements.txt
-  - lambda_function.py
+  - lambda_function_foundational.py
+  - lambda_function_advance.py
+  - infrastructure/cloudformation/ec2-shutdown-foundational.yml
+  - infrastructure/cloudformation/ec2-shutdown-advance.yml
+
