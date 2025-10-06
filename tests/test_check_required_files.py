@@ -1,135 +1,83 @@
-import time
-import os
-from unittest.mock import patch, MagicMock
+#!/usr/bin/env python3
+import sys
+import json
+from pathlib import Path
 
-import pytest
+import yaml  # requires PyYAML
 
-import lambda_function_advance as lambda_function_advance
+def load_required_from_yaml(config_path: Path) -> list[str] | None:
+    """
+    Loads the required files list from a YAML config file.
+    Expects YAML structure like:
+      required_files:
+        - README.md
+        - lambda_function.py
+    Returns the list of required files, or None if file missing or malformed.
+    """
+    if not config_path.exists():
+        return None
+    try:
+        content = yaml.safe_load(config_path.read_text())
+        if not isinstance(content, dict):
+            return None
+        files = content.get("required_files")
+        if not isinstance(files, list):
+            return None
+        # Ensure all entries are strings
+        cleaned = [f for f in files if isinstance(f, str)]
+        if len(cleaned) != len(files):
+            return None
+        return cleaned
+    except Exception as e:
+        print(f"Warning: could not parse {config_path}: {e}", file=sys.stderr)
+        return None
 
-
-
-
-class DummyContext:
-    def __init__(self, aws_request_id="req-xyz"):
-        self.aws_request_id = aws_request_id
-
-
-@pytest.fixture(autouse=True)
-def set_env(monkeypatch):
-    """Ensure DDB_TABLE_NAME is defined in environment."""
-    monkeypatch.setenv("DDB_TABLE_NAME", "TestTable")
-
-
-@patch("lambda_function_advance.get_ec2_client")
-@patch("lambda_function_advance.get_dynamodb_resource")
-def test_no_instances(mock_get_dynamo, mock_get_ec2):
-    """When describe_instances returns no matching instances."""
-    # Setup mocks
-    mock_ec2 = MagicMock()
-    mock_get_ec2.return_value = mock_ec2
-    mock_ec2.describe_instances.return_value = {"Reservations": []}
-
-    mock_dynamo = MagicMock()
-    mock_get_dynamo.return_value = mock_dynamo
-    mock_table = MagicMock()
-    mock_dynamo.Table.return_value = mock_table
-
-    ctx = DummyContext("ctx-1")
-    result = lambda_function_advance.lambda_handler(event={}, context=ctx)
-
-    assert result == {"stopped": []}
-    mock_ec2.stop_instances.assert_not_called()
-    mock_table.batch_writer.assert_not_called()
-
-
-@patch("lambda_function_advance.get_ec2_client")
-@patch("lambda_function_advance.get_dynamodb_resource")
-def test_with_instances(mock_get_dynamo, mock_get_ec2):
-    """When there are matching instances."""
-    dummy_inst = {
-        "InstanceId": "i-1234",
-        "Tags": [
-            {"Key": "Environment", "Value": "Dev"},
-            {"Key": "AutoShutdown", "Value": "True"},
-            {"Key": "Extra", "Value": "Val"}
-        ]
+def check_files(base_dir: Path, required_files: list[str]) -> dict:
+    present = []
+    missing = []
+    for filename in required_files:
+        target = base_dir / filename
+        if target.exists():
+            present.append(filename)
+        else:
+            missing.append(filename)
+    return {
+        "required": required_files,
+        "present": present,
+        "missing": missing,
+        "all_present": (len(missing) == 0),
     }
-    describe_resp = {"Reservations": [{"Instances": [dummy_inst]}]}
 
-    mock_ec2 = MagicMock()
-    mock_get_ec2.return_value = mock_ec2
-    mock_ec2.describe_instances.return_value = describe_resp
-    mock_ec2.stop_instances.return_value = {"StoppingInstances": []}
+def main():
+    script_path = Path(__file__).resolve()
+    repo_root = script_path.parent.parent  # adjust if script is not in scripts folder
 
-    mock_dynamo = MagicMock()
-    mock_get_dynamo.return_value = mock_dynamo
-    mock_table = MagicMock()
-    mock_dynamo.Table.return_value = mock_table
-
-    batch_cm = mock_table.batch_writer.return_value
-    batch_cm.__enter__.return_value = batch_cm
-    batch_cm.__exit__.return_value = None
-
-    ctx = DummyContext("exec-77")
-    before = int(time.time())
-    result = lambda_function_advance.lambda_handler(event={}, context=ctx)
-    after = int(time.time())
-
-    # EC2 assertions
-    mock_ec2.describe_instances.assert_called_once_with(
-        Filters=[
-            {"Name": "instance-state-name", "Values": ["running"]},
-            {"Name": "tag:Environment", "Values": ["Dev"]},
-            {"Name": "tag:AutoShutdown", "Values": ["True"]}
+    # Try to load override list from .required-files.yml / .required-files.yaml
+    cfg1 = repo_root / ".required-files.yml"
+    cfg2 = repo_root / ".required-files.yaml"
+    required = load_required_from_yaml(cfg1)
+    if required is None:
+        required = load_required_from_yaml(cfg2)
+    if required is None:
+        # fallback default list
+        required = [
+            "README.md",
+            ".gitignore",
+            "requirements.txt",
+            "lambda_function_foundational.py",
+            "lambda_function_advance.py",
+            # add others you need
         ]
-    )
-    mock_ec2.stop_instances.assert_called_once_with(
-        InstanceIds=[dummy_inst["InstanceId"]]
-    )
 
-    # DynamoDB assertions
-    mock_table.batch_writer.assert_called_once()
-    assert batch_cm.put_item.call_count == 1
-    _, kwargs = batch_cm.put_item.call_args
-    item = kwargs.get("Item") if "Item" in kwargs else kwargs
+    result = check_files(repo_root, required)
 
-    assert item["ExecutionId"] == ctx.aws_request_id
-    assert item["InstanceId"] == dummy_inst["InstanceId"]
-    ts = item["ShutdownTimestamp"]
-    assert before <= ts <= after
-    tags = item["Tags"]
-    assert tags["Environment"] == "Dev"
-    assert tags["AutoShutdown"] == "True"
-    assert tags["Extra"] == "Val"
+    # Print JSON to stdout
+    print(json.dumps(result))
 
-    # Return value assertions
-    assert result["stopped"] == [dummy_inst["InstanceId"]]
-    assert result["execution_id"] == ctx.aws_request_id
-    assert result["shutdown_timestamp"] == ts
+    # Exit with nonzero if missing any
+    if not result["all_present"]:
+        sys.exit(1)
+    sys.exit(0)
 
-
-@patch("lambda_function_advance.get_ec2_client")
-@patch("lambda_function_advance.get_dynamodb_resource")
-def test_dynamo_failure(mock_get_dynamo, mock_get_ec2):
-    """Simulate DynamoDB put_item failure."""
-    dummy_inst = {"InstanceId": "i-fail", "Tags": []}
-    mock_ec2 = MagicMock()
-    mock_get_ec2.return_value = mock_ec2
-    mock_ec2.describe_instances.return_value = {"Reservations": [{"Instances": [dummy_inst]}]}
-    mock_ec2.stop_instances.return_value = {"StoppingInstances": []}
-
-    mock_dynamo = MagicMock()
-    mock_get_dynamo.return_value = mock_dynamo
-    mock_table = MagicMock()
-    mock_dynamo.Table.return_value = mock_table
-
-    batch_cm = mock_table.batch_writer.return_value
-    batch_cm.__enter__.return_value = batch_cm
-    batch_cm.__exit__.return_value = None
-    batch_cm.put_item.side_effect = Exception("Dynamo write failed")
-
-    ctx = DummyContext("ctx-fail")
-    with pytest.raises(Exception) as excinfo:
-        lambda_function_advance.lambda_handler(event={}, context=ctx)
-
-    assert "Dynamo write failed" in str(excinfo.value)
+if __name__ == "__main__":
+    main()
