@@ -3,7 +3,6 @@ name: Deploy Lambda to beta, logs to CloudWatch.
 on:
   pull_request:
     branches:
-      - main
       - dev
 
 permissions:
@@ -16,7 +15,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        python-version: ["3.11", "3.12", "3.13"]
+        python-version: ["3.12", "3.13"]
     env:
       AWS_ACCESS_KEY_ID: ${{secrets.AWS_ACCESS_KEY_ID}}
       AWS_SECRET_ACCESS_KEY: ${{secrets.AWS_SECRET_ACCESS_KEY}}
@@ -25,6 +24,8 @@ jobs:
       S3_BUCKET_BETA: ${{secrets.S3_BUCKET_BETA}}
       S3_PATH_BETA: ${{secrets.S3_PATH_BETA}}
       CF_STACK_NAME_BETA: ${{secrets.CF_STACK_NAME_BETA}}
+      BETA_LOG_GROUP: ${{secrets.BETA_LOG_GROUP}}
+      BETA_LOG_STREAM: ${{secrets.BETA_LOG_STREAM}}
 
     steps:
       - name: Checkout code
@@ -45,7 +46,10 @@ jobs:
           flake8 . --count --select=E9,F63,F7,F82 --show-source --statistics
           # exit-zero treats all errors as warnings. The GitHub editor is 127 chars wide
           flake8 . --count --exit-zero --max-complexity=10 --max-line-length=127 --statistics
-  
+          
+      - name: Run required files check
+        run: |
+          python tests/check_required_files.py
       - name: Run unit tests
         run: pytest -v --maxfail=1 --disable-warnings -q
 
@@ -54,10 +58,6 @@ jobs:
           echo "Pull Request #${{ github.event.pull_request.number }}"
           echo "Head branch: ${{ github.head_ref }}"
           echo "Base branch: ${{ github.event.pull_request.base.ref }}"
-
-      - name: Run required files check
-        run: |
-          python tests/check_required_files.py
 
       - name: Configure AWS credentials
         if: steps.run_required_files_check.outcome == 'success'
@@ -109,8 +109,8 @@ jobs:
           ec2_instance_id=$(aws ec2 describe-instances --filters Name=instance-state-name,Values=running --query "Reservations[].Instances[].InstanceId" --output json)
 
           
-          echo "Using log group: $LOG_GROUP_NAME"
-          echo "Log stream: $LOG_STREAM_NAME"
+          echo "Using log group: $BETA_LOG_GROUP"
+          echo "Log stream: $BETA_LOG_STREAM"
           
           # Create log group (ignore error if it already exists)
           aws logs create-log-group \
@@ -118,16 +118,16 @@ jobs:
           
           # Create log stream (ignore error if it already exists)
           aws logs create-log-stream \
-            --log-group-name "$LOG_GROUP_NAME" \
-            --log-stream-name "$LOG_STREAM_NAME" || true
+            --log-group-name "$BETA_LOG_GROUP" \
+            --log-stream-name "$BETA_LOG_STREAM" || true
           
           # Create the log message as a single string
           LOG_MESSAGE="Workflow: ${WORKFLOW_NAME}, Commit: ${COMMIT_SHA}, Actor: ${GITHUB_ACTOR}, Branch: ${{ github.ref_name }}, Timestamp: ${TIMESTAMP}", ec2_instance_id=${ec2_instance_id}
           
           # Put log event with proper JSON format
           aws logs put-log-events \
-            --log-group-name "$LOG_GROUP_NAME" \
-            --log-stream-name "$LOG_STREAM_NAME" \
+            --log-group-name "$BETA_LOG_GROUP" \
+            --log-stream-name "$BETA_LOG_STREAM" \
             --log-events "[{\"timestamp\":$TIMESTAMP,\"message\":\"$LOG_MESSAGE\"}]"
 
       - name: Logging Successful
