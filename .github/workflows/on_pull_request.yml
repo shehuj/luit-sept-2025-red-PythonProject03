@@ -3,7 +3,6 @@ name: Deploy Lambda to beta, logs to CloudWatch.
 on:
   pull_request:
     branches:
-      - main
       - dev
 
 permissions:
