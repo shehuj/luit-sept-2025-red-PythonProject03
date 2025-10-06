@@ -3,6 +3,8 @@ import tempfile
 from pathlib import Path
 import yaml
 import pytest
+import sys
+
 
 from tests.check_required_files import check_files, load_required_from_yaml
 

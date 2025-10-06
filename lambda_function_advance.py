@@ -2,12 +2,16 @@ import os
 import time
 import boto3
 
-ec2 = boto3.client("ec2")
-dynamodb = boto3.resource("dynamodb")
-table_name = os.environ["DDB_TABLE_NAME"]
-table = dynamodb.Table(table_name)
+def get_ec2_client():
+    return boto3.client("ec2")
+
+def get_dynamodb_resource():
+    return boto3.resource("dynamodb")
 
 def lambda_handler(event, context):
+    ec2 = get_ec2_client()
+    dynamodb = get_dynamodb_resource()
+
     filters = [
         {"Name": "instance-state-name", "Values": ["running"]},
         {"Name": "tag:Environment", "Values": ["Dev"]},
@@ -27,7 +31,10 @@ def lambda_handler(event, context):
     ec2.stop_instances(InstanceIds=instance_ids)
     print(f"Stopping instances: {instance_ids}")
 
-    # Log to DynamoDB
+    # DynamoDB logging
+    table_name = os.environ["DDB_TABLE_NAME"]
+    table = dynamodb.Table(table_name)
+
     timestamp = int(time.time())
     exec_id = context.aws_request_id
 
