@@ -5,7 +5,7 @@ import boto3
 ec2 = boto3.client("ec2")
 dynamodb = boto3.resource("dynamodb")
 table_name = os.environ["DDB_TABLE_NAME"]
-table = dynamodb.Table(table_name)
+table = dynamodb.Table("EC2ShutdownLogTable")
 
 def lambda_handler(event, context):
     filters = [

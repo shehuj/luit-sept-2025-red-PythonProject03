@@ -4,7 +4,7 @@ from unittest.mock import patch, MagicMock
 
 import pytest
 
-import lambda_function_advance as lambda_function
+import lambda_function_foundational as lambda_function
 
 
 
