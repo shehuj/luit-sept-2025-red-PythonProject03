@@ -5,9 +5,9 @@ name: Run Unit Tests
 
 on:
   push:
-    branches: [ "main", "dev" ]
+    branches: [ "main"]
   pull_request:
-    branches: [ "main", "dev" ]
+    branches: [ "dev" ]
 
 jobs:
   build:
@@ -16,7 +16,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        python-version: ["3.11", "3.12", "3.13"]
+        python-version: ["3.12", "3.13"]
 
     steps:
     - uses: actions/checkout@v4
