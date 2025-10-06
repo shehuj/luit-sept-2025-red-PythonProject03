@@ -2,9 +2,9 @@ name: CloudWatch Logging
 
 on:
   push:
-    branches: [ "main" ]
+    branches: [ "main", "dev" ]
   pull_request:
-    branches: [ "dev" ]
+    branches: [ "dev", "main" ]
 jobs:
   log_to_cloudwatch:
     runs-on: ubuntu-latest
