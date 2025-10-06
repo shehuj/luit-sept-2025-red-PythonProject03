@@ -45,15 +45,9 @@ jobs:
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           aws-region: ${{ secrets.AWS_REGION }}
 
-      - name: Debug AWS Identity
-        if: steps.run_required_files_check.outcome == 'success'
-        run: |
-          aws sts get-caller-identity || echo "No credentials"
-          env | grep AWS
-
       - name: Zip Lambda Function
         run: zip ${{ secrets.LAMBDA_NAME_BETA }}.zip lambda_function_advance.py
-        
+
       - name: Upload to S3 (Beta)
         if: steps.run_required_files_check.outcome == 'success'
         run: aws s3 cp ${{ secrets.LAMBDA_NAME_BETA }}.zip s3://${{ secrets.S3_BUCKET_BETA }}/${{ secrets.S3_PATH_BETA }}
