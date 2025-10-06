@@ -4,7 +4,9 @@ from unittest.mock import patch, MagicMock
 
 import pytest
 
-#import lambda_function_advance
+import lambda_function_advance.py as lambda_function_advance
+
+
 
 
 class DummyContext:
