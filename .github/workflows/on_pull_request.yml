@@ -72,7 +72,7 @@ jobs:
           aws-region: ${{ secrets.AWS_REGION }}
 
       - name: Zip Lambda Function
-        run: zip ${{ secrets.LAMBDA_NAME_BETA }}.zip lambda_function_advance.py
+        run: zip ${{ secrets.LAMBDA_NAME_BETA }}.zip lambda_function_foundational.py
 
       - name: Upload to S3 (Beta)
         if: steps.run_required_files_check.outcome == 'success'
