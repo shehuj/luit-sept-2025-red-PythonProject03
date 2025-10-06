@@ -4,7 +4,7 @@ from pathlib import Path
 import yaml
 import pytest
 
-from scripts.check_required_files import check_files, load_required_from_yaml
+from tests.check_required_files import check_files, load_required_from_yaml
 
 def test_load_required_from_yaml_valid(tmp_path):
     yaml_path = tmp_path / ".required-files.yml"
