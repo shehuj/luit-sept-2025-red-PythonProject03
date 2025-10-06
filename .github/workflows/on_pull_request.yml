@@ -62,5 +62,4 @@ jobs:
               LambdaFunctionName=${{ secrets.LAMBDA_NAME_BETA }} \
               LambdaCodeBucket=${{ secrets.S3_BUCKET_BETA }} \
               LambdaCodeKey=${{ secrets.S3_PATH_BETA }}
-
       # (Your CloudWatch logging step can remain as you have it, gated similarly)
