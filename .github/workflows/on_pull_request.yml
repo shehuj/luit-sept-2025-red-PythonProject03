@@ -51,6 +51,7 @@ jobs:
       - name: Run required files check
         run: |
           python tests/check_required_files.py
+        working-directory: tests
       - name: Run unit tests
         run: pytest -v --maxfail=1 --disable-warnings -q
 
