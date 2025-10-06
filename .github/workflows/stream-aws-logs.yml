@@ -8,6 +8,15 @@ on:
 jobs:
   log_to_cloudwatch:
     runs-on: ubuntu-latest
+    env: 
+      AWS_ACCESS_KEY_ID: ${{secrets.AWS_ACCESS_KEY_ID}}
+      AWS_SECRET_ACCESS_KEY: ${{secrets.AWS_SECRET_ACCESS_KEY}}
+      AWS_REGION: ${{secrets.AWS_REGION}}
+      PROD_LOG_GROUP: ${{secrets.PROD_LOG_GROUP}}
+      BETA_LOG_GROUP: ${{secrets.BETA_LOG_GROUP}}
+      LAMBDA_NAME_PROD: ${{secrets.LAMBDA_NAME_PROD}}
+      LAMBDA_NAME_BETA: ${{secrets.LAMBDA_NAME_BETA}}
+
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -40,6 +49,8 @@ jobs:
           GITHUB_ACTOR="${{ github.actor }}"
           WORKFLOW_NAME="${{ github.workflow }}"
           TIMESTAMP=$(date +%s%3N)
+          ec2_instance_id=$(aws ec2 describe-instances --filters Name=instance-state-name,Values=running --query "Reservations[].Instances[].InstanceId" --output json)
+
           
           echo "Using log group: $LOG_GROUP_NAME"
           echo "Log stream: $LOG_STREAM_NAME"
@@ -54,7 +65,7 @@ jobs:
             --log-stream-name "$LOG_STREAM_NAME" || true
           
           # Create the log message as a single string
-          LOG_MESSAGE="Workflow: ${WORKFLOW_NAME}, Commit: ${COMMIT_SHA}, Actor: ${GITHUB_ACTOR}, Branch: ${{ github.ref_name }}, Timestamp: ${TIMESTAMP}"
+          LOG_MESSAGE="Workflow: ${WORKFLOW_NAME}, Commit: ${COMMIT_SHA}, Actor: ${GITHUB_ACTOR}, Branch: ${{ github.ref_name }}, Timestamp: ${TIMESTAMP}", ec2_instance_id=${ec2_instance_id}
           
           # Put log event with proper JSON format
           aws logs put-log-events \
