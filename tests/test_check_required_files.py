@@ -4,7 +4,9 @@ from unittest.mock import patch, MagicMock
 
 import pytest
 
-import lambda_function  # adjust if your module name is different
+import lambda_function_advance as lambda_function
+
+
 
 
 class DummyContext:
@@ -16,7 +18,7 @@ class DummyContext:
 @pytest.fixture(autouse=True)
 def patch_env(monkeypatch):
     """Ensure the DDB_TABLE_NAME env var is set before import/usage."""
-    monkeypatch.setenv("DDB_TABLE_NAME", "MyTestTable")
+    monkeypatch.setenv("DDB_TABLE_NAME", "EC2ShutdownLogTable")
 
 
 @patch("lambda_function.boto3.client")
