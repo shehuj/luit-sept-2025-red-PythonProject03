@@ -115,7 +115,3 @@ jobs:
             --log-group-name "$LOG_GROUP_NAME" \
             --log-stream-name "$LOG_STREAM_NAME" \
             --log-events "[{\"timestamp\":$TIMESTAMP,\"message\":\"$LOG_MESSAGE\"}]"
-      
-      - name: Logging Successful
-        run: |
-            echo "Logs are now present in CloudWatch"

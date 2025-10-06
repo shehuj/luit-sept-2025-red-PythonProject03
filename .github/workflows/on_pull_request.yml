@@ -131,7 +131,3 @@ jobs:
             --log-group-name "$BETA_LOG_GROUP" \
             --log-stream-name "$BETA_LOG_STREAM" \
             --log-events "[{\"timestamp\":$TIMESTAMP,\"message\":\"$LOG_MESSAGE\"}]"
-
-      - name: Logging Successful
-        run: |
-            echo "Logs are now present in CloudWatch BETA"
