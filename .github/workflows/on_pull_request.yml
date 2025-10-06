@@ -37,7 +37,7 @@ jobs:
           python-version: ${{ matrix.python-version }}
       - name: Install dependencies
         run: |
-          python -m pip install requirements.txt
+          python -m pip install -r requirements.txt
           python -m pip install --upgrade pip
           python -m pip install flake8 pytest
           if [ -f requirements.txt ]; then pip install -r requirements.txt; fi
@@ -50,7 +50,7 @@ jobs:
           
       - name: Run required files check
         run: |
-          python tests/check_required_files.py
+          python test_check_required_files.py
         working-directory: tests
       - name: Run unit tests
         run: pytest -v --maxfail=1 --disable-warnings -q
@@ -131,7 +131,3 @@ jobs:
             --log-group-name "$BETA_LOG_GROUP" \
             --log-stream-name "$BETA_LOG_STREAM" \
             --log-events "[{\"timestamp\":$TIMESTAMP,\"message\":\"$LOG_MESSAGE\"}]"
-
-      - name: Logging Successful
-        run: |
-            echo "Logs are now present in CloudWatch BETA"
