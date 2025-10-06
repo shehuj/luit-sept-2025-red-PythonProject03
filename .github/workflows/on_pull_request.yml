@@ -1,11 +1,9 @@
-name: Deploy Lambda to Beta
+name: Deploy Lambda
 
 on:
   pull_request:
     branches:
-#      - main
       - dev
-
 
 permissions:
   id-token: write

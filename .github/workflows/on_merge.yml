@@ -1,4 +1,4 @@
-name: Deploy Lambda to Prod
+name: Deploy Lambda
 
 on:
   push:
