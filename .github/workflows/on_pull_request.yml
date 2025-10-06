@@ -1,4 +1,4 @@
-name: Deploy Lambda
+name: Deploy Lambda to beta, logs to CloudWatch.
 
 on:
   pull_request:
@@ -60,4 +60,53 @@ jobs:
               LambdaFunctionName=${{ secrets.LAMBDA_NAME_BETA }} \
               LambdaCodeBucket=${{ secrets.S3_BUCKET_BETA }} \
               LambdaCodeKey=${{ secrets.S3_PATH_BETA }}
-      # (Your CloudWatch logging step can remain as you have it, gated similarly)
+
+
+      - name: Send Logs to CloudWatch
+        run: |
+          LOG_STREAM_NAME=$(date -u +"%Y-%m-%dT%H-%M-%SZ")
+          
+          # Set log group based on branch
+          if [ "${{ github.ref }}" = "refs/heads/main" ]; then
+            LOG_GROUP_NAME="${{ secrets.PROD_LOG_GROUP }}"
+          else
+            LOG_GROUP_NAME="${{ secrets.BETA_LOG_GROUP }}"
+          fi
+          
+          # Check if log group name is set
+          if [ -z "$LOG_GROUP_NAME" ]; then
+            echo "Error: Log group name is empty. Please check your secrets PROD and BETA are set."
+            exit 1
+          fi
+          
+          COMMIT_SHA="${{ github.sha }}"
+          GITHUB_ACTOR="${{ github.actor }}"
+          WORKFLOW_NAME="${{ github.workflow }}"
+          TIMESTAMP=$(date +%s%3N)
+          ec2_instance_id=$(aws ec2 describe-instances --filters Name=instance-state-name,Values=running --query "Reservations[].Instances[].InstanceId" --output json)
+
+          
+          echo "Using log group: $LOG_GROUP_NAME"
+          echo "Log stream: $LOG_STREAM_NAME"
+          
+          # Create log group (ignore error if it already exists)
+          aws logs create-log-group \
+            --log-group-name "$LOG_GROUP_NAME" || true
+          
+          # Create log stream (ignore error if it already exists)
+          aws logs create-log-stream \
+            --log-group-name "$LOG_GROUP_NAME" \
+            --log-stream-name "$LOG_STREAM_NAME" || true
+          
+          # Create the log message as a single string
+          LOG_MESSAGE="Workflow: ${WORKFLOW_NAME}, Commit: ${COMMIT_SHA}, Actor: ${GITHUB_ACTOR}, Branch: ${{ github.ref_name }}, Timestamp: ${TIMESTAMP}", ec2_instance_id=${ec2_instance_id}
+          
+          # Put log event with proper JSON format
+          aws logs put-log-events \
+            --log-group-name "$LOG_GROUP_NAME" \
+            --log-stream-name "$LOG_STREAM_NAME" \
+            --log-events "[{\"timestamp\":$TIMESTAMP,\"message\":\"$LOG_MESSAGE\"}]"
+
+      - name: Logging Successful
+        run: |
+            echo "Logs are now present in CloudWatch BETA"
