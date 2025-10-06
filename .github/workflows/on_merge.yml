@@ -46,7 +46,7 @@ jobs:
       
       - name: Check required files
         run: |
-          python tests/test_check_required_files.py
+          python tests/
 
       - name: Configure AWS credentials
         uses: aws-actions/configure-aws-credentials@v4
