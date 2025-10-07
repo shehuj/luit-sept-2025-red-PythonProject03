@@ -83,8 +83,8 @@ jobs:
         if: env.USE_EXISTING != 'true'
         run: |
           echo "Deleting existing stack $STACK_NAME"
-          aws cloudformation delete-stack --stack-name "${ secrets.CF_STACK_NAME_BETA}" --region ${{ secrets.AWS_REGION }}
-          aws cloudformation wait stack-delete-complete --stack-name "${ secrets.CF_STACK_NAME_BETA}" --region ${{ secrets.AWS_REGION }}
+          aws cloudformation delete-stack --stack-name "${{ secrets.CF_STACK_NAME_BETA }}" --region ${{ secrets.AWS_REGION }}
+          aws cloudformation wait stack-delete-complete --stack-name "${{ secrets.CF_STACK_NAME_BETA }}" --region ${{ secrets.AWS_REGION }}
       - name: Deploy CloudFormation (Beta)
         run: |
           aws cloudformation deploy \
