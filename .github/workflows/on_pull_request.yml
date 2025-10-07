@@ -78,12 +78,6 @@ jobs:
       - name: Upload to S3 (Beta)
         run: aws s3 cp ${{ env.LAMBDA_NAME_BETA }}.zip s3://${{ env.S3_BUCKET_BETA }}/${{ env.S3_PATH_BETA }}
 
-      - name: Maybe delete existing stack
-        if: env.USE_EXISTING != 'true'
-        run: |
-          echo "Deleting existing stack $STACK_NAME"
-          aws cloudformation delete-stack --stack-name "${{ env.CF_STACK_NAME_BETA }}" --region ${{ env.AWS_REGION }}
-          aws cloudformation wait stack-delete-complete --stack-name "${{ env.CF_STACK_NAME_BETA }}" --region ${{ env.AWS_REGION }}
       - name: Deploy CloudFormation (Beta)
         run: |
           aws cloudformation deploy \
