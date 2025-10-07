@@ -4,7 +4,7 @@ Description: Lambda function to stop EC2 instances on a schedule
 Parameters:
   LambdaFunctionName:
     Type: String
-    Default: EC2ShutdownLambda
+    Default: EC2ShutdownLambdaFoundational
     Description: Name for the Lambda function
 
   LambdaCodeBucket:
@@ -14,7 +14,7 @@ Parameters:
 
   LambdaCodeKey:
     Type: String
-    Default: lambda.zip
+    Default: foundational/lambda.zip
     Description: S3 key for the Lambda deployment package (e.g., path/to/lambda.zip)
 
 Resources:
