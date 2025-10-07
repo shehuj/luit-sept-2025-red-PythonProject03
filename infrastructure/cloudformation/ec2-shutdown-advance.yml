@@ -98,6 +98,7 @@ Resources:
 
   PermissionForEventsToInvokeLambda:
     Type: AWS::Lambda::Permission
+    DeletionPolicy: Retain
     Properties:
       FunctionName: !Ref LambdaFunction
       Action: lambda:InvokeFunction
