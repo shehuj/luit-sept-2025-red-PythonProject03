@@ -68,6 +68,13 @@ jobs:
       - name: Upload to S3 (Prod)
         run: aws s3 cp ${{ env.LAMBDA_NAME_PROD }}.zip s3://${{ secrets.S3_BUCKET_PROD }}/${{ secrets.S3_PATH_PROD }}
 
+      - name: Maybe delete existing stack
+        if: env.USE_EXISTING != 'true'
+        run: |
+          echo "Deleting existing stack $STACK_NAME"
+          aws cloudformation delete-stack --stack-name "${{ env.CF_STACK_NAME_BETA }}" --region ${{ env.AWS_REGION }}
+          aws cloudformation wait stack-delete-complete --stack-name "${{ env.CF_STACK_NAME_BETA }}" --region ${{ env.AWS_REGION }}
+
       - name: Deploy CloudFormation (Prod)
         run: |
           aws cloudformation deploy \
