@@ -22,6 +22,8 @@ Parameters:
   DynamoDbTableName:
     Type: String
     Description: Name for the DynamoDB table to log shutdowns
+    Default: ec2-shutdown-logs-beta
+
 Resources:
 
   LambdaExecutionRole:
