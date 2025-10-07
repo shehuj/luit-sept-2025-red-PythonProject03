@@ -120,7 +120,6 @@ Resources:
         - AttributeName: "InstanceId"
           KeyType: RANGE
       BillingMode: PAY_PER_REQUEST
-    DeletionPolicy: Retain
     UpdateReplacePolicy: Retain
 
 Outputs:
