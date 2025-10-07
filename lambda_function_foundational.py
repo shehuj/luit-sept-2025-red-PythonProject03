@@ -6,7 +6,7 @@ instances = ec2.describe_instances()['Reservations']
 for instance in instances:
     for i in instance['Instances']:
         
-# Check for all running ec2 instances and stops them and print their ID's
+# Check for all running ec2 instances, stops them and print their ID's
         if i['State']['Name'] == 'running':
             ec2.stop_instances(InstanceIds=[i['InstanceId']])
             print(f'Stopping {i["InstanceId"]}')

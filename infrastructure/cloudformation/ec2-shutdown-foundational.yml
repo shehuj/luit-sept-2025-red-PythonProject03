@@ -9,10 +9,12 @@ Parameters:
 
   LambdaCodeBucket:
     Type: String
+    Default: ec2-shutdown-lambda-bucket
     Description: S3 bucket where the Lambda deployment package is stored
 
   LambdaCodeKey:
     Type: String
+    Default: lambda-beta.zip
     Description: S3 key for the Lambda deployment package (e.g., path/to/lambda.zip)
 
 Resources:
