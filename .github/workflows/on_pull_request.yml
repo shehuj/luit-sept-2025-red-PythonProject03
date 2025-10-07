@@ -29,8 +29,8 @@ jobs:
       S3_BUCKET_BETA: ${{secrets.S3_BUCKET_BETA}}
       S3_PATH_BETA: ${{secrets.S3_PATH_BETA}}
       CF_STACK_NAME_BETA: ${{secrets.CF_STACK_NAME_BETA}}
-      BETA_LOG_GROUP: ${{secrets.BETA_LOG_GROUP}}
-      BETA_LOG_STREAM: ${{secrets.BETA_LOG_STREAM}}
+#      BETA_LOG_GROUP: ${{secrets.BETA_LOG_GROUP}}
+#      BETA_LOG_STREAM: ${{secrets.BETA_LOG_STREAM}}
 
     steps:
       - name: Checkout code
@@ -98,16 +98,23 @@ jobs:
       - name: Send Logs to CloudWatch
         run: |
           LOG_STREAM_NAME=$(date -u +"%Y-%m-%dT%H-%M-%SZ")
-          
-          # Set log group based on branch
-          if [ "${{ github.ref }}" = "refs/heads/main" ]; then
-            LOG_GROUP_NAME="${{ env.BETA_LOG_GROUP }}"
-          fi
-          
+        
           # Check if log group name is set
           if [ -z "$LOG_GROUP_NAME" ]; then
             echo "Error: Log group name is empty. Please check your secrets PROD and BETA are set."
-            exit 1
+          else
+            echo "Using log group: $LOG_GROUP_NAME"
+            echo "Log stream: $LOG_STREAM_NAME"
+          fi
+          
+          # Create log group
+          aws logs create-log-group \
+            --log-group-name "$LOG_GROUP_NAME" || true
+          
+          # Create log stream
+          aws logs create-log-stream \
+            --log-group-name "$LOG_GROUP_NAME" \
+            --log-stream-name "$LOG_STREAM_NAME" || true
           fi
           
           COMMIT_SHA="${{ github.sha }}"
