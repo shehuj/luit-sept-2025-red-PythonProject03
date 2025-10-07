@@ -1,15 +1,33 @@
 import boto3
 
-# Create EC2 Client
-ec2 = boto3.client('ec2')
-instances = ec2.describe_instances()['Reservations']
-for instance in instances:
-    for i in instance['Instances']:
-        
-# Check for all running ec2 instances, stops them and print their ID's
-        if i['State']['Name'] == 'running':
-            ec2.stop_instances(InstanceIds=[i['InstanceId']])
-            print(f'Stopping {i["InstanceId"]}')
-            break
-        print(instances, "has been stopped successfully")
-print('No running instances found.')
+def get_tag_value(tags, key_name):
+    """Helper: from a list of tag dictionaries, return the Value for Key == key_name, or None."""
+    for tag in tags or []:
+        if tag.get("Key") == key_name:
+            return tag.get("Value")
+    return None
+
+def stop_running_instances_and_print():
+    ec2 = boto3.client('ec2')
+    response = ec2.describe_instances().get("Reservations", [])
+    found_any = False
+
+    for reservation in response:
+        for inst in reservation.get("Instances", []):
+            state = inst.get("State", {}).get("Name")
+            inst_id = inst.get("InstanceId")
+            if state == "running" and inst_id is not None:
+                found_any = True
+                ec2.stop_instances(InstanceIds=[inst_id])
+                name = get_tag_value(inst.get("Tags", []), "Name")
+                print(f"Stopping instance: id={inst_id}", end="")
+                if name:
+                    print(f", name={name}, state={state}, tags={inst.get('Tags')}")
+                else:
+                    print()
+    if not found_any:
+        print("No running instances found.")
+
+if __name__ == "__main__":
+    stop_running_instances_and_print()
+print("=======================================================")
