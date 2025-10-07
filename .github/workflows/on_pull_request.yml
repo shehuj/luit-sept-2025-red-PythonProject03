@@ -67,34 +67,33 @@ jobs:
         if: steps.run_required_files_check.outcome == 'success'
         uses: aws-actions/configure-aws-credentials@v4
         with:
-          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
-          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-          aws-region: ${{ secrets.AWS_REGION }}
+          aws-access-key-id: ${{ env.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ env.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ env.AWS_REGION }}
 
       - name: Zip Lambda Function
-        run: zip ${{ secrets.LAMBDA_NAME_BETA }}.zip lambda_function_foundational.py
+        run: zip ${{ env.LAMBDA_NAME_BETA }}.zip lambda_function_foundational.py
 
 
       - name: Upload to S3 (Beta)
-        if: steps.run_required_files_check.outcome == 'success'
-        run: aws s3 cp ${{ secrets.LAMBDA_NAME_BETA }}.zip s3://${{ secrets.S3_BUCKET_BETA }}/${{ secrets.S3_PATH_BETA }}
+        run: aws s3 cp ${{ env.LAMBDA_NAME_BETA }}.zip s3://${{ env.S3_BUCKET_BETA }}/${{ env.S3_PATH_BETA }}
 
       - name: Maybe delete existing stack
         if: env.USE_EXISTING != 'true'
         run: |
           echo "Deleting existing stack $STACK_NAME"
-          aws cloudformation delete-stack --stack-name "${{ secrets.CF_STACK_NAME_BETA }}" --region ${{ secrets.AWS_REGION }}
-          aws cloudformation wait stack-delete-complete --stack-name "${{ secrets.CF_STACK_NAME_BETA }}" --region ${{ secrets.AWS_REGION }}
+          aws cloudformation delete-stack --stack-name "${{ env.CF_STACK_NAME_BETA }}" --region ${{ env.AWS_REGION }}
+          aws cloudformation wait stack-delete-complete --stack-name "${{ env.CF_STACK_NAME_BETA }}" --region ${{ env.AWS_REGION }}
       - name: Deploy CloudFormation (Beta)
         run: |
           aws cloudformation deploy \
-            --stack-name ${{ secrets.CF_STACK_NAME_BETA }} \
+            --stack-name ${{ env.CF_STACK_NAME_BETA }} \
             --template-file infrastructure/cloudformation/ec2-shutdown-foundational.yml \
             --capabilities CAPABILITY_NAMED_IAM \
             --parameter-overrides \
-              LambdaFunctionName=${{ secrets.LAMBDA_NAME_BETA }} \
-              LambdaCodeBucket=${{ secrets.S3_BUCKET_BETA }} \
-              LambdaCodeKey=${{ secrets.S3_PATH_BETA }}
+              LambdaFunctionName=${{ env.LAMBDA_NAME_BETA }} \
+              LambdaCodeBucket=${{ env.S3_BUCKET_BETA }} \
+              LambdaCodeKey=${{ env.S3_PATH_BETA }}
 
       - name: Send Logs to CloudWatch
         run: |
@@ -102,9 +101,7 @@ jobs:
           
           # Set log group based on branch
           if [ "${{ github.ref }}" = "refs/heads/main" ]; then
-            LOG_GROUP_NAME="${{ secrets.PROD_LOG_GROUP }}"
-          else
-            LOG_GROUP_NAME="${{ secrets.BETA_LOG_GROUP }}"
+            LOG_GROUP_NAME="${{ env.BETA_LOG_GROUP }}"
           fi
           
           # Check if log group name is set
@@ -125,18 +122,18 @@ jobs:
           
           # Create log group (ignore error if it already exists)
           aws logs create-log-group \
-            --log-group-name "$LOG_GROUP_NAME" || true
+            --log-group-name "$env.BETA_LOG_GROUP" || true
           
           # Create log stream (ignore error if it already exists)
           aws logs create-log-stream \
-            --log-group-name "$BETA_LOG_GROUP" \
-            --log-stream-name "$BETA_LOG_STREAM" || true
+            --log-group-name "$env.BETA_LOG_GROUP" \
+            --log-stream-name "$env.BETA_LOG_STREAM" || true
           
           # Create the log message as a single string
           LOG_MESSAGE="Workflow: ${WORKFLOW_NAME}, Commit: ${COMMIT_SHA}, Actor: ${GITHUB_ACTOR}, Branch: ${{ github.ref_name }}, Timestamp: ${TIMESTAMP}", ec2_instance_id=${ec2_instance_id}
           
           # Put log event with proper JSON format
           aws logs put-log-events \
-            --log-group-name "$BETA_LOG_GROUP" \
-            --log-stream-name "$BETA_LOG_STREAM" \
+            --log-group-name "$env.BETA_LOG_GROUP" \
+            --log-stream-name "$env.BETA_LOG_STREAM" \
             --log-events "[{\"timestamp\":$TIMESTAMP,\"message\":\"$LOG_MESSAGE\"}]"
