@@ -40,7 +40,7 @@ Resources:
               Service: lambda.amazonaws.com
             Action: sts:AssumeRole
       Policies:
-        - PolicyName: EC2AndLoggingPolicy
+        - PolicyName: EC2AndLoggingPolicyProd
           PolicyDocument:
             Version: "2012-10-17"
             Statement:
