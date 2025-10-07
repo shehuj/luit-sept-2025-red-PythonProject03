@@ -31,7 +31,7 @@ Resources:
               Service: lambda.amazonaws.com
             Action: sts:AssumeRole
       Policies:
-        - PolicyName: EC2ShutdownPolicy
+        - PolicyName: EC2ShutdownPolicyBeta
           PolicyDocument:
             Version: "2012-10-17"
             Statement:
