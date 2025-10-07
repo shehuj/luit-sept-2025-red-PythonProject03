@@ -8,7 +8,7 @@ def get_ec2_client():
 def get_dynamodb_resource():
     return boto3.resource("dynamodb")
 
-def lambda_handler(event, context):
+def lambda_handler(events, context):
     ec2 = get_ec2_client()
     dynamodb = get_dynamodb_resource()
 

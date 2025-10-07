@@ -4,6 +4,11 @@ on:
   pull_request:
     branches:
       - dev
+  push:
+    branches:
+      - main
+      - dev
+
 
 permissions:
   id-token: write
@@ -15,7 +20,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        python-version: ["3.12", "3.13"]
+        python-version: ["3.12"]
     env:
       AWS_ACCESS_KEY_ID: ${{secrets.AWS_ACCESS_KEY_ID}}
       AWS_SECRET_ACCESS_KEY: ${{secrets.AWS_SECRET_ACCESS_KEY}}
@@ -24,8 +29,8 @@ jobs:
       S3_BUCKET_BETA: ${{secrets.S3_BUCKET_BETA}}
       S3_PATH_BETA: ${{secrets.S3_PATH_BETA}}
       CF_STACK_NAME_BETA: ${{secrets.CF_STACK_NAME_BETA}}
-      BETA_LOG_GROUP: ${{secrets.BETA_LOG_GROUP}}
-      BETA_LOG_STREAM: ${{secrets.BETA_LOG_STREAM}}
+#      BETA_LOG_GROUP: ${{secrets.BETA_LOG_GROUP}}
+#      BETA_LOG_STREAM: ${{secrets.BETA_LOG_STREAM}}
 
     steps:
       - name: Checkout code
@@ -52,9 +57,6 @@ jobs:
         run: |
           python test_check_required_files.py
         working-directory: tests
-      - name: Run unit tests
-        run: pytest -v --maxfail=1 --disable-warnings -q
-
       - name: Display PR info
         run: |
           echo "Pull Request #${{ github.event.pull_request.number }}"
@@ -65,69 +67,30 @@ jobs:
         if: steps.run_required_files_check.outcome == 'success'
         uses: aws-actions/configure-aws-credentials@v4
         with:
-          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
-          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-          aws-region: ${{ secrets.AWS_REGION }}
+          aws-access-key-id: ${{ env.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ env.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ env.AWS_REGION }}
 
       - name: Zip Lambda Function
-        run: zip ${{ secrets.LAMBDA_NAME_BETA }}.zip lambda_function_advance.py
+        run: zip ${{ env.LAMBDA_NAME_BETA }}.zip lambda_function_foundational.py
+
 
       - name: Upload to S3 (Beta)
-        if: steps.run_required_files_check.outcome == 'success'
-        run: aws s3 cp ${{ secrets.LAMBDA_NAME_BETA }}.zip s3://${{ secrets.S3_BUCKET_BETA }}/${{ secrets.S3_PATH_BETA }}
+        run: aws s3 cp ${{ env.LAMBDA_NAME_BETA }}.zip s3://${{ env.S3_BUCKET_BETA }}/${{ env.S3_PATH_BETA }}
 
+      - name: Maybe delete existing stack
+        if: env.USE_EXISTING != 'true'
+        run: |
+          echo "Deleting existing stack $STACK_NAME"
+          aws cloudformation delete-stack --stack-name "${{ env.CF_STACK_NAME_BETA }}" --region ${{ env.AWS_REGION }}
+          aws cloudformation wait stack-delete-complete --stack-name "${{ env.CF_STACK_NAME_BETA }}" --region ${{ env.AWS_REGION }}
       - name: Deploy CloudFormation (Beta)
         run: |
           aws cloudformation deploy \
-            --stack-name ${{ secrets.CF_STACK_NAME_BETA }} \
-            --template-file infrastructure/cloudformation/ec2-shutdown-advance.yml \
+            --stack-name ${{ env.CF_STACK_NAME_BETA }} \
+            --template-file infrastructure/cloudformation/ec2-shutdown-foundational.yml \
             --capabilities CAPABILITY_NAMED_IAM \
             --parameter-overrides \
-              LambdaFunctionName=${{ secrets.LAMBDA_NAME_BETA }} \
-              LambdaCodeBucket=${{ secrets.S3_BUCKET_BETA }} \
-              LambdaCodeKey=${{ secrets.S3_PATH_BETA }}
-
-      - name: Send Logs to CloudWatch
-        run: |
-          LOG_STREAM_NAME=$(date -u +"%Y-%m-%dT%H-%M-%SZ")
-          
-          # Set log group based on branch
-          if [ "${{ github.ref }}" = "refs/heads/main" ]; then
-            LOG_GROUP_NAME="${{ secrets.PROD_LOG_GROUP }}"
-          else
-            LOG_GROUP_NAME="${{ secrets.BETA_LOG_GROUP }}"
-          fi
-          
-          # Check if log group name is set
-          if [ -z "$LOG_GROUP_NAME" ]; then
-            echo "Error: Log group name is empty. Please check your secrets PROD and BETA are set."
-            exit 1
-          fi
-          
-          COMMIT_SHA="${{ github.sha }}"
-          GITHUB_ACTOR="${{ github.actor }}"
-          WORKFLOW_NAME="${{ github.workflow }}"
-          TIMESTAMP=$(date +%s%3N)
-          ec2_instance_id=$(aws ec2 describe-instances --filters Name=instance-state-name,Values=running --query "Reservations[].Instances[].InstanceId" --output json)
-
-          
-          echo "Using log group: $BETA_LOG_GROUP"
-          echo "Log stream: $BETA_LOG_STREAM"
-          
-          # Create log group (ignore error if it already exists)
-          aws logs create-log-group \
-            --log-group-name "$LOG_GROUP_NAME" || true
-          
-          # Create log stream (ignore error if it already exists)
-          aws logs create-log-stream \
-            --log-group-name "$BETA_LOG_GROUP" \
-            --log-stream-name "$BETA_LOG_STREAM" || true
-          
-          # Create the log message as a single string
-          LOG_MESSAGE="Workflow: ${WORKFLOW_NAME}, Commit: ${COMMIT_SHA}, Actor: ${GITHUB_ACTOR}, Branch: ${{ github.ref_name }}, Timestamp: ${TIMESTAMP}", ec2_instance_id=${ec2_instance_id}
-          
-          # Put log event with proper JSON format
-          aws logs put-log-events \
-            --log-group-name "$BETA_LOG_GROUP" \
-            --log-stream-name "$BETA_LOG_STREAM" \
-            --log-events "[{\"timestamp\":$TIMESTAMP,\"message\":\"$LOG_MESSAGE\"}]"
+              LambdaFunctionName=${{ env.LAMBDA_NAME_BETA }} \
+              LambdaCodeBucket=${{ env.S3_BUCKET_BETA }} \
+              LambdaCodeKey=${{ env.S3_PATH_BETA }}

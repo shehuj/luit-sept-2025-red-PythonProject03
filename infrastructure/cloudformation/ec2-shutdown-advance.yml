@@ -7,7 +7,7 @@ Parameters:
   LambdaFunctionName:
     Type: String
     Description: Name of the Lambda function
-    Default: EC2ShutdownLambda
+    Default: EC2ShutdownLambdaAdvanced
 
   LambdaCodeBucket:
     Type: String
@@ -17,12 +17,13 @@ Parameters:
   LambdaCodeKey:
     Type: String
     Description: S3 key for Lambda ZIP (e.g. path/to/lambda.zip)
-    Default: lambda.zip
+    Default: advanced/lambda.zip
 
   DynamoDbTableName:
     Type: String
     Description: Name for the DynamoDB table to log shutdowns
-    Default: EC2ShutdownLogTable
+    Default: ec2-shutdown-logs-advanced
+
 
 Resources:
 

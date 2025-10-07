@@ -4,6 +4,9 @@ on:
   push:
     branches:
       - main
+  pull_request:
+    branches:
+      - dev
 
 permissions:
   id-token: write
@@ -20,6 +23,12 @@ jobs:
       S3_BUCKET_PROD: ${{secrets.S3_BUCKET_PROD}}
       S3_PATH_PROD: ${{secrets.S3_PATH_PROD}}
       CF_STACK_NAME_PROD: ${{secrets.CF_STACK_NAME_PROD}}
+      PROD_LOG_GROUP: ${{secrets.PROD_LOG_GROUP}}
+      PROD_LOG_STREAM: ${{secrets.PROD_LOG_STREAM}}
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version: ["3.12", "3.13"]
 
     steps:
       - name: Checkout code
@@ -49,69 +58,23 @@ jobs:
       - name: Configure AWS credentials
         uses: aws-actions/configure-aws-credentials@v4
         with:
-          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-access-key-id: ${{ env.AWS_ACCESS_KEY_ID }}
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-          aws-region: ${{ secrets.AWS_REGION }}
+          aws-region: ${{ env.AWS_REGION }}
 
       - name: Zip Lambda Function
-        run: zip ${{ secrets.LAMBDA_NAME_PROD }}.zip lambda_function_advance.py
+        run: zip ${{ env.LAMBDA_NAME_PROD }}.zip lambda_function_advance.py
 
       - name: Upload to S3 (Prod)
-        run: aws s3 cp ${{ secrets.LAMBDA_NAME_PROD }}.zip s3://${{ secrets.S3_BUCKET_PROD }}/${{ secrets.S3_PATH_PROD }}
+        run: aws s3 cp ${{ env.LAMBDA_NAME_PROD }}.zip s3://${{ secrets.S3_BUCKET_PROD }}/${{ secrets.S3_PATH_PROD }}
 
       - name: Deploy CloudFormation (Prod)
         run: |
           aws cloudformation deploy \
-            --stack-name ${{ secrets.CF_STACK_NAME_PROD }} \
+            --stack-name ${{ env.CF_STACK_NAME_PROD }} \
             --template-file infrastructure/cloudformation/ec2-shutdown-advance.yml \
             --capabilities CAPABILITY_NAMED_IAM \
             --parameter-overrides \
-              LambdaFunctionName=${{ secrets.LAMBDA_NAME_PROD }} \
-              LambdaCodeBucket=${{ secrets.S3_BUCKET_PROD }} \
-              LambdaCodeKey=${{ secrets.S3_PATH_PROD }}
-
-
-      - name: Create log stream and put log event
-        run: |
-          LOG_STREAM_NAME=$(date -u +"%Y-%m-%dT%H-%M-%SZ")
-                
-          # Set log group based on branch
-          if [ "${{ github.ref }}" = "refs/heads/main" ]; then
-            LOG_GROUP_NAME="${{ secrets.PROD_LOG_GROUP }}"
-          else
-            LOG_GROUP_NAME="${{ secrets.BETA_LOG_GROUP }}"
-          fi
-                
-          # Check if log group name is set
-          if [ -z "$LOG_GROUP_NAME" ]; then
-            echo "Error: Log group name is empty. Please check your secrets PROD and BETA are set."
-            exit 1
-          fi
-                
-          COMMIT_SHA="${{ github.sha }}"
-          GITHUB_ACTOR="${{ github.actor }}"
-          WORKFLOW_NAME="${{ github.workflow }}"
-          TIMESTAMP=$(date +%s%3N)
-          ec2_instance_id=$(aws ec2 describe-instances --filters Name=instance-state-name,Values=running --query "Reservations[].Instances[].InstanceId" --output json)
-      
-                
-          echo "Using log group: $LOG_GROUP_NAME"
-          echo "Log stream: $LOG_STREAM_NAME"
-                
-          # Create log group (ignore error if it already exists)
-          aws logs create-log-group \
-            --log-group-name "$LOG_GROUP_NAME" || true
-                
-          # Create log stream (ignore error if it already exists)
-          aws logs create-log-stream \
-            --log-group-name "$LOG_GROUP_NAME" \
-            --log-stream-name "$LOG_STREAM_NAME" || true
-                
-          # Create the log message as a single string
-          LOG_MESSAGE="Workflow: ${WORKFLOW_NAME}, Commit: ${COMMIT_SHA}, Actor: ${GITHUB_ACTOR}, Branch: ${{ github.ref_name }}, Timestamp: ${TIMESTAMP}", ec2_instance_id=${ec2_instance_id}
-                
-          # Put log event with proper JSON format
-          aws logs put-log-events \
-            --log-group-name "$LOG_GROUP_NAME" \
-            --log-stream-name "$LOG_STREAM_NAME" \
-            --log-events "[{\"timestamp\":$TIMESTAMP,\"message\":\"$LOG_MESSAGE\"}]"
+              LambdaFunctionName=${{ env.LAMBDA_NAME_PROD }} \
+              LambdaCodeBucket=${{ env.S3_BUCKET_PROD }} \
+              LambdaCodeKey=${{ env.S3_PATH_PROD }}
