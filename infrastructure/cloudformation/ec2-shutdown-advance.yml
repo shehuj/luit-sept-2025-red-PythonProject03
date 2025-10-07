@@ -17,7 +17,7 @@ Parameters:
   LambdaCodeKey:
     Type: String
     Description: S3 key for Lambda ZIP (e.g. path/to/lambda.zip)
-    Default: advanced/lambda.zip
+    Default: lambda-prod.zip
 
   DynamoDbTableName:
     Type: String
