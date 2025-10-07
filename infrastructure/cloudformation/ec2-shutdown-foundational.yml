@@ -14,7 +14,7 @@ Parameters:
 
   LambdaCodeKey:
     Type: String
-    Default: /lambda-beta.zip
+    Default: lambda-beta.zip
     Description: S3 key for the Lambda deployment package (e.g., path/to/lambda.zip)
 
 Resources:
