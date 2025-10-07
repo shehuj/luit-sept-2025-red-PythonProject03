@@ -58,7 +58,7 @@ jobs:
           aws-region: ${{ env.AWS_REGION }}
 
       - name: Zip Lambda Function
-        run: zip ${{ env.LAMBDA_NAME_PROD }}.zip lambda_function_advance.py
+        run: zip -r ${{ env.LAMBDA_NAME_PROD }}.zip /lambda_function_advance.py
 
       - name: Upload to S3 (Prod)
         run: aws s3 cp ${{ env.LAMBDA_NAME_PROD }}.zip s3://${{ secrets.S3_BUCKET_PROD }}/${{ secrets.S3_PATH_PROD }}
