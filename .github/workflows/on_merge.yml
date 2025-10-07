@@ -23,8 +23,6 @@ jobs:
       S3_BUCKET_PROD: ${{secrets.S3_BUCKET_PROD}}
       S3_PATH_PROD: ${{secrets.S3_PATH_PROD}}
       CF_STACK_NAME_PROD: ${{secrets.CF_STACK_NAME_PROD}}
-      PROD_LOG_GROUP: ${{secrets.PROD_LOG_GROUP}}
-      PROD_LOG_STREAM: ${{secrets.PROD_LOG_STREAM}}
     strategy:
       fail-fast: false
       matrix:
@@ -59,7 +57,7 @@ jobs:
         uses: aws-actions/configure-aws-credentials@v4
         with:
           aws-access-key-id: ${{ env.AWS_ACCESS_KEY_ID }}
-          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-secret-access-key: ${{ env.AWS_SECRET_ACCESS_KEY }}
           aws-region: ${{ env.AWS_REGION }}
 
       - name: Zip Lambda Function
@@ -71,9 +69,9 @@ jobs:
       - name: Maybe delete existing stack
         if: env.USE_EXISTING != 'true'
         run: |
-          echo "Deleting existing stack $STACK_NAME"
-          aws cloudformation delete-stack --stack-name "${{ env.CF_STACK_NAME_BETA }}" --region ${{ env.AWS_REGION }}
-          aws cloudformation wait stack-delete-complete --stack-name "${{ env.CF_STACK_NAME_BETA }}" --region ${{ env.AWS_REGION }}
+          echo "Deleting existing stack "${{ env.CF_STACK_NAME_PROD }}"
+          aws cloudformation delete-stack --stack-name "${{ env.CF_STACK_NAME_PROD }}" --region ${{ env.AWS_REGION }}
+          aws cloudformation wait stack-delete-complete --stack-name "${{ env.CF_STACK_NAME_PROD }}" --region ${{ env.AWS_REGION }}
 
       - name: Deploy CloudFormation (Prod)
         run: |
